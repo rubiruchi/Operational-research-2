@@ -2,7 +2,7 @@ import networkx as nx
 import pylab
 import wx
 import wx.lib.scrolledpanel as scrolled
-
+from process_file import read_data
 
 class DataElement:
     def __init__(self):
@@ -13,6 +13,24 @@ class DataElement:
 
 
 class MainFrame(wx.Frame):
+
+    def on_import(self, event):
+
+        with wx.FileDialog(self, "Choose your data file..", wildcard="Text file(*.txt)|*.txt",
+                           style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as fileDialog:
+
+            if fileDialog.ShowModal() == wx.ID_CANCEL:
+                return  # User clean
+
+            # User upload
+            pathname = fileDialog.GetPath()
+            try:
+                with open(pathname, 'r') as file:
+                    imported_graph = read_data(file)
+                    #TODO for Misio: somehow save it beyond function
+            except IOError:
+                wx.LogError("Cannot open file '%s'.")
+
 
     def __init__(self, *args, **kw):
         # ensure the parent's __init__ is called
@@ -83,13 +101,14 @@ class MainFrame(wx.Frame):
         plot_item = menu.Append(-1, "&Plot\tCtrl-P", "Plot graph with current data")
         menu.AppendSeparator()
         clear_item = menu.Append(-1, "&Clean\tCtrl-C", "Clean the data")
-
+        import_from_file_item = menu.Append(-1, "&Import..\tCtrl-T", "Import data from file")
         menu_bar = wx.MenuBar()
         menu_bar.Append(menu, "&Menu")
 
         self.SetMenuBar(menu_bar)
 
         self.Bind(wx.EVT_MENU, self.on_plot_clicked, plot_item)
+        self.Bind(wx.EVT_MENU, self.on_import, import_from_file_item)
         # self.Bind(wx.EVT_MENU, self.OnClearClicked, clear_item)
 
     def on_add_clicked(self, event):

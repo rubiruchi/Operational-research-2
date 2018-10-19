@@ -1,10 +1,15 @@
+from tkinter import Tk
+from tkinter.filedialog import askopenfilename
+
+
 def parse_line(line):
     line = line.rstrip("\n")
     line = line.split(" ")
     return line
 
 
-def read_data(file):
+def read_data(filename):
+    file = open(filename)
     queue = []
     line = file.readline()
     queue.append(parse_line(line))
@@ -15,11 +20,12 @@ def read_data(file):
     print(queue)
     return queue
 
-# def choose_file():
-#     Tk().withdraw()
-#     filename = askopenfilename()
-#     print(filename)
-#     read_data(filename)
-#
+
+def choose_file():
+    Tk().withdraw()
+    filename = askopenfilename()
+    print(filename)
+    read_data(filename)
+
 # choose_file()
 

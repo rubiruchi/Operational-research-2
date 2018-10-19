@@ -2,7 +2,9 @@ import networkx as nx
 import pylab
 import wx
 import wx.lib.scrolledpanel as scrolled
-from process_file import read_data
+
+from process_file import choose_file
+
 
 class DataElement:
     def __init__(self):
@@ -13,24 +15,6 @@ class DataElement:
 
 
 class MainFrame(wx.Frame):
-
-    def on_import(self, event):
-
-        with wx.FileDialog(self, "Choose your data file..", wildcard="Text file(*.txt)|*.txt",
-                           style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as fileDialog:
-
-            if fileDialog.ShowModal() == wx.ID_CANCEL:
-                return  # User clean
-
-            # User upload
-            pathname = fileDialog.GetPath()
-            try:
-                with open(pathname, 'r') as file:
-                    imported_graph = read_data(file)
-                    #TODO for Misio: somehow save it beyond function
-            except IOError:
-                wx.LogError("Cannot open file '%s'.")
-
 
     def __init__(self, *args, **kw):
         # ensure the parent's __init__ is called
@@ -87,7 +71,7 @@ class MainFrame(wx.Frame):
 
         self.data = []
 
-        self.makeMenuBar()
+        self.make_menu_bar()
         self.panel.SetSizer(self.vbox)
         self.CreateStatusBar()
         self.SetStatusText("Welcome to operational research application!")
@@ -96,20 +80,32 @@ class MainFrame(wx.Frame):
         self.Show()
         self.Fit()
 
-    def makeMenuBar(self):
+    def make_menu_bar(self):
         menu = wx.Menu()
         plot_item = menu.Append(-1, "&Plot\tCtrl-P", "Plot graph with current data")
         menu.AppendSeparator()
         clear_item = menu.Append(-1, "&Clean\tCtrl-C", "Clean the data")
-        import_from_file_item = menu.Append(-1, "&Import..\tCtrl-T", "Import data from file")
+
+        menu_file = wx.Menu()
+        load_events_item = menu_file.Append(-1, "&Load (events succession)\tCtrl-E",
+                                            "Load data as succession of events")
+        menu_file.AppendSeparator()
+        load_activities_item = menu_file.Append(-1, "&Load (preceding activities)\tCtrl-A",
+                                                "Load data as preceding activities")
+
         menu_bar = wx.MenuBar()
         menu_bar.Append(menu, "&Menu")
+        menu_bar.Append(menu_file, "&File")
 
         self.SetMenuBar(menu_bar)
 
         self.Bind(wx.EVT_MENU, self.on_plot_clicked, plot_item)
-        self.Bind(wx.EVT_MENU, self.on_import, import_from_file_item)
+        self.Bind(wx.EVT_MENU, self.on_load_events_clicked, load_events_item)
         # self.Bind(wx.EVT_MENU, self.OnClearClicked, clear_item)
+
+    def on_load_events_clicked(self, event):
+        choose_file()
+        return
 
     def on_add_clicked(self, event):
         newDataElement = DataElement()
@@ -152,26 +148,61 @@ class MainFrame(wx.Frame):
         self.panel.SetSizer(self.vbox)
         self.panel.Layout()
 
+    def add_nodes_value(self, G, node, critical_path, is_on_critical=True):
+        critical = []
+        node_queue = []
+
+        for edge in G.out_edges(node):
+            value = G.nodes[edge[0]]['t0'] + G[edge[0]][edge[1]]['time']
+            if "t0" not in G.nodes[edge[1]] or value >= G.nodes[edge[1]]['t0']:
+                G.nodes[edge[1]]['t0'] = value
+                if is_on_critical:
+                    if not critical:
+                        critical.append((edge[0], edge[1], value))
+                    elif value == critical[0][2]:
+                        critical.append((edge[0], edge[1], value))
+                    elif value > critical[0][2]:
+                        critical.clear()
+                        critical.append((edge[0], edge[1], value))
+            node_queue.append(edge[1])
+
+        for red in critical:
+            critical_path.append((red[0], red[1]))
+        for node in node_queue:
+            added = False
+            for red in critical:
+                if red[1] == node:
+                    self.add_nodes_value(G, node, critical_path)
+                    added = True
+                    break
+            if not added:
+                self.add_nodes_value(G, node, critical_path, False)
+
     def on_plot_clicked(self, event):
         G = nx.DiGraph()
         for dataElement in self.data:
-            G.add_edges_from([(dataElement.first_event, dataElement.second_event)], time=dataElement.time, value=0)
+            G.add_edges_from([(dataElement.first_event, dataElement.second_event)], time=dataElement.time)
 
         node = "1"
-        for edge in G.out_edges(node):
-            print(G[edge[0]][edge[1]])
+        G.nodes[node]['t0'] = 0
+        critical_path = []
+
+        self.add_nodes_value(G, node, critical_path)
+
+        normal_path = [edge for edge in G.edges() if edge not in critical_path]
 
         pos = nx.spring_layout(G)
         pylab.figure()
-        nx.draw(G, pos)
 
-        nx.draw_networkx_edge_labels(G, pos, dict([((u, v,), d['time'])
-                                                   for u, v, d in G.edges(data=True)]))
+        nx.draw(G, pos)
+        nx.draw_networkx_edge_labels(G, pos, dict([((u, v,), d['time']) for u, v, d in G.edges(data=True)]))
+        nx.draw_networkx_edges(G, pos, edgelist=critical_path, edge_color='r', arrows=True)
+        nx.draw_networkx_edges(G, pos, edgelist=normal_path, arrows=True)
         nx.draw_networkx_labels(G, pos)
         pylab.axis('off')
         pylab.show()
 
-    def OnToggle(self, event):
+    def on_toggle(self, event):
         state = event.GetEventObject().GetValue()
 
         if state:

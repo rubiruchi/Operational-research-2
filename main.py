@@ -2,8 +2,7 @@ import networkx as nx
 import pylab
 import wx
 import wx.lib.scrolledpanel as scrolled
-
-from process_file import choose_file
+from process_file import parse_line_into_queue
 
 
 class DataElement:
@@ -104,11 +103,31 @@ class MainFrame(wx.Frame):
         # self.Bind(wx.EVT_MENU, self.OnClearClicked, clear_item)
 
     def on_load_events_clicked(self, event):
-        choose_file()
-        return
+
+        with wx.FileDialog(self, "Choose your data file..", wildcard="Text file(*.txt)|*.txt",
+                           style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as fileDialog:
+
+            if fileDialog.ShowModal() == wx.ID_CANCEL:
+                return  # User clean
+
+            # User upload
+            pathname = fileDialog.GetPath()
+            try:
+                with open(pathname, 'r') as file:
+                    imported_graph = parse_line_into_queue(file.readlines())
+                    for i in range(0, len(imported_graph), 4):  # data sets are in 4s
+                        new_data_element = DataElement()
+                        new_data_element.activity = imported_graph[i]
+                        new_data_element.time = imported_graph[i + 1]
+                        new_data_element.first_event = imported_graph[i + 2]
+                        new_data_element.second_event = imported_graph[i + 3]
+                        self.data.append(new_data_element)
+                        self.set_data_element(new_data_element)
+            except IOError:
+                wx.LogError("Cannot open file '%s'.")
 
     def on_add_clicked(self, event):
-        newDataElement = DataElement()
+        new_data_element = DataElement()
         if not self.activity_input.GetValue() \
                 or not self.time_input.GetValue() \
                 or not self.A_input.GetValue() \
@@ -116,21 +135,23 @@ class MainFrame(wx.Frame):
             wx.MessageBox("Enter all data!")
             return
         try:
-            newDataElement.time = float(self.time_input.GetValue())
-            newDataElement.activity = self.activity_input.GetValue()
-            newDataElement.first_event = self.A_input.GetValue()
-            newDataElement.second_event = self.B_input.GetValue()
-            self.data.append(newDataElement)
+            new_data_element.time = float(self.time_input.GetValue())
+            new_data_element.activity = self.activity_input.GetValue()
+            new_data_element.first_event = self.A_input.GetValue()
+            new_data_element.second_event = self.B_input.GetValue()
+            self.data.append(new_data_element)
         except ValueError:
             wx.MessageBox("Wrong time! Enter number")
             return
+        self.set_data_element(new_data_element)
 
+    def set_data_element(self, data_element):
         # Data element added
         hbox = wx.BoxSizer(wx.HORIZONTAL)
-        activity = wx.StaticText(self.panel, -1, self.activity_input.GetValue())
-        time = wx.StaticText(self.panel, -1, self.time_input.GetValue())
-        A = wx.StaticText(self.panel, -1, self.A_input.GetValue())
-        B = wx.StaticText(self.panel, -1, self.B_input.GetValue())
+        activity = wx.StaticText(self.panel, -1, str(data_element.activity))
+        time = wx.StaticText(self.panel, -1, str(data_element.time))
+        A = wx.StaticText(self.panel, -1, str(data_element.first_event))
+        B = wx.StaticText(self.panel, -1, str(data_element.second_event))
         hbox.Add(activity, 0, wx.EXPAND | wx.ALIGN_LEFT | wx.ALL, 5)
         hbox.Add(time, 0, wx.EXPAND | wx.ALIGN_LEFT | wx.ALL, 5)
         hbox.Add(A, 0, wx.EXPAND | wx.ALIGN_LEFT | wx.ALL, 5)
@@ -181,7 +202,7 @@ class MainFrame(wx.Frame):
     def on_plot_clicked(self, event):
         G = nx.DiGraph()
         for dataElement in self.data:
-            G.add_edges_from([(dataElement.first_event, dataElement.second_event)], time=dataElement.time)
+            G.add_edges_from([(dataElement.first_event, dataElement.second_event)], time=int(dataElement.time))
 
         node = "1"
         G.nodes[node]['t0'] = 0

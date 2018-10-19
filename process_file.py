@@ -1,31 +1,10 @@
-from tkinter import Tk
-from tkinter.filedialog import askopenfilename
-
-
-def parse_line(line):
-    line = line.rstrip("\n")
-    line = line.split(" ")
-    return line
-
-
-def read_data(filename):
-    file = open(filename)
+def parse_line_into_queue(file_lines):
     queue = []
-    line = file.readline()
-    queue.append(parse_line(line))
-    while line:
-        line = file.readline()
-        queue.append(parse_line(line))
-    queue.pop(-1)
-    print(queue)
+    lines = [line.rstrip('\n') for line in file_lines]
+    lines = [line.split(' ') for line in lines]
+    print(lines)
+    for i in lines:
+        for j in i:
+            queue.append(j)
     return queue
-
-
-def choose_file():
-    Tk().withdraw()
-    filename = askopenfilename()
-    print(filename)
-    read_data(filename)
-
-# choose_file()
 

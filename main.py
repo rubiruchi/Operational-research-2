@@ -169,35 +169,32 @@ class MainFrame(wx.Frame):
         self.panel.SetSizer(self.vbox)
         self.panel.Layout()
 
-    def add_nodes_value(self, G, node, critical_path, is_on_critical=True):
-        critical = []
+    def add_nodes_t0(self, G, node):
         node_queue = []
 
         for edge in G.out_edges(node):
             value = G.nodes[edge[0]]['t0'] + G[edge[0]][edge[1]]['time']
             if "t0" not in G.nodes[edge[1]] or value >= G.nodes[edge[1]]['t0']:
                 G.nodes[edge[1]]['t0'] = value
-                if is_on_critical:
-                    if not critical:
-                        critical.append((edge[0], edge[1], value))
-                    elif value == critical[0][2]:
-                        critical.append((edge[0], edge[1], value))
-                    elif value > critical[0][2]:
-                        critical.clear()
-                        critical.append((edge[0], edge[1], value))
             node_queue.append(edge[1])
 
-        for red in critical:
-            critical_path.append((red[0], red[1]))
         for node in node_queue:
-            added = False
-            for red in critical:
-                if red[1] == node:
-                    self.add_nodes_value(G, node, critical_path)
-                    added = True
-                    break
-            if not added:
-                self.add_nodes_value(G, node, critical_path, False)
+            self.add_nodes_t0(G, node)
+
+    def add_nodes_t1(self, G, node, critical_path):
+        node_queue = []
+
+        for edge in G.in_edges(node):
+            value = G.nodes[edge[1]]['t1'] - G[edge[0]][edge[1]]['time']
+            if "t1" not in G.nodes[edge[0]] or value <= G.nodes[edge[0]]['t1']:
+                G.nodes[edge[0]]['t1'] = value
+                print("%s (%s) %s %s" % (value, G[edge[0]][edge[1]], G.node[edge[0]], G.node[edge[1]]))
+                if G.nodes[edge[0]]['t1'] - G.nodes[edge[0]]['t0'] == 0:
+                    critical_path.append((edge[0], edge[1]))
+            node_queue.append(edge[0])
+           
+        for node in node_queue:
+            self.add_nodes_t1(G, node, critical_path)
 
     def on_plot_clicked(self, event):
         G = nx.DiGraph()
@@ -206,9 +203,12 @@ class MainFrame(wx.Frame):
 
         node = "1"
         G.nodes[node]['t0'] = 0
-        critical_path = []
+        self.add_nodes_t0(G, node)
 
-        self.add_nodes_value(G, node, critical_path)
+        node = self.data[-1].second_event;
+        G.nodes[node]['t1'] = G.nodes[node]['t0']
+        critical_path = []
+        self.add_nodes_t1(G, node, critical_path)
 
         normal_path = [edge for edge in G.edges() if edge not in critical_path]
 

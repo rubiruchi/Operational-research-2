@@ -210,15 +210,17 @@ class MainFrame(wx.Frame):
         critical_path = []
         self.add_nodes_t1(G, node, critical_path)
 
-        normal_path = [edge for edge in G.edges() if edge not in critical_path]
-
+        non_zero_paths = [(u, v) for (u, v, d) in G.edges(data=True) if not d['time'] == 0]
+        normal_path = list(set(non_zero_paths) - set(critical_path))
+        dashed_path = [(u,v) for (u,v,d) in G.edges(data=True) if d['time'] == 0]
         pos = nx.spring_layout(G)
         pylab.figure()
 
-        nx.draw(G, pos)
-        nx.draw_networkx_edge_labels(G, pos, dict([((u, v,), d['time']) for u, v, d in G.edges(data=True)]))
+        nx.draw_networkx_nodes(G, pos)
         nx.draw_networkx_edges(G, pos, edgelist=critical_path, edge_color='r', arrows=True)
         nx.draw_networkx_edges(G, pos, edgelist=normal_path, arrows=True)
+        nx.draw_networkx_edges(G, pos, edgelist=dashed_path, arrows=True, alpha=0.6, edge_color = 'b', style='dashed')
+        nx.draw_networkx_edge_labels(G, pos, dict([((u, v,), d['time']) for u, v, d in G.edges(data=True)]))
         nx.draw_networkx_labels(G, pos)
         pylab.axis('off')
         pylab.show()

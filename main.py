@@ -192,7 +192,7 @@ class MainFrame(wx.Frame):
                 if G.nodes[edge[0]]['t1'] - G.nodes[edge[0]]['t0'] == 0:
                     critical_path.append((edge[0], edge[1]))
             node_queue.append(edge[0])
-           
+
         for node in node_queue:
             self.add_nodes_t1(G, node, critical_path)
 
@@ -205,21 +205,22 @@ class MainFrame(wx.Frame):
         G.nodes[node]['t0'] = 0
         self.add_nodes_t0(G, node)
 
-        node = self.data[-1].second_event;
+        node = self.data[-1].second_event
         G.nodes[node]['t1'] = G.nodes[node]['t0']
         critical_path = []
         self.add_nodes_t1(G, node, critical_path)
 
         non_zero_paths = [(u, v) for (u, v, d) in G.edges(data=True) if not d['time'] == 0]
         normal_path = list(set(non_zero_paths) - set(critical_path))
-        dashed_path = [(u,v) for (u,v,d) in G.edges(data=True) if d['time'] == 0]
+        dashed_path = [(u, v) for (u, v, d) in G.edges(data=True) if d['time'] == 0]
         pos = nx.spring_layout(G)
         pylab.figure()
 
         nx.draw_networkx_nodes(G, pos)
-        nx.draw_networkx_edges(G, pos, edgelist=critical_path, edge_color='r', arrows=True)
-        nx.draw_networkx_edges(G, pos, edgelist=normal_path, arrows=True)
-        nx.draw_networkx_edges(G, pos, edgelist=dashed_path, arrows=True, alpha=0.6, edge_color = 'b', style='dashed')
+        nx.draw_networkx_edges(G, pos, edgelist=critical_path, edge_color='r')
+        nx.draw_networkx_edges(G, pos, edgelist=normal_path)
+        nx.draw_networkx_edges(G, pos, edgelist=dashed_path, width=0)
+        nx.draw_networkx_edges(G, pos, edgelist=dashed_path, arrows=False, style='dashed')
         nx.draw_networkx_edge_labels(G, pos, dict([((u, v,), d['time']) for u, v, d in G.edges(data=True)]))
         nx.draw_networkx_labels(G, pos)
         pylab.axis('off')

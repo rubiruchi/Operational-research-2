@@ -178,6 +178,9 @@ class MainFrame(wx.Frame):
                             self.set_data_element(new_data_element)
                 except IOError:
                     wx.LogError("Cannot open file '%s'.")
+        else:
+            return
+            # TODO load by actions
 
     def on_add_by_actions_clicked(self, event):
         new_data_element = DataElementEvents()

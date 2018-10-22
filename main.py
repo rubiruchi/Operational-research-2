@@ -2,7 +2,8 @@ import networkx as nx
 import pylab
 import wx
 import wx.lib.scrolledpanel as scrolled
-from process_file import parse_line_into_queue
+from process_file import parse_actions_into_queue
+from process_file import parse_events_into_queue
 
 
 class DataElementEvents:
@@ -11,6 +12,7 @@ class DataElementEvents:
         self.time = 0
         self.first_event = None
         self.second_event = None
+
 
 class MainFrame(wx.Frame):
 
@@ -156,31 +158,30 @@ class MainFrame(wx.Frame):
 
     def on_load_clicked(self, event):
 
-        if self.is_loaded_as_events:
-            with wx.FileDialog(self, "Choose your data file..", wildcard="Text file(*.txt)|*.txt",
-                               style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as fileDialog:
+        with wx.FileDialog(self, "Choose your data file..", wildcard="Text file(*.txt)|*.txt",
+                           style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as fileDialog:
 
-                if fileDialog.ShowModal() == wx.ID_CANCEL:
-                    return  # User clean
+            if fileDialog.ShowModal() == wx.ID_CANCEL:
+                return  # User clean
 
-                # User upload
-                pathname = fileDialog.GetPath()
-                try:
-                    with open(pathname, 'r') as file:
-                        imported_graph = parse_line_into_queue(file.readlines())
-                        for i in range(0, len(imported_graph), 4):  # data sets are in 4s
-                            new_data_element = DataElementEvents()
-                            new_data_element.activity = imported_graph[i]
-                            new_data_element.time = imported_graph[i + 1]
-                            new_data_element.first_event = imported_graph[i + 2]
-                            new_data_element.second_event = imported_graph[i + 3]
-                            self.data.append(new_data_element)
-                            self.set_data_element(new_data_element)
-                except IOError:
-                    wx.LogError("Cannot open file '%s'.")
-        else:
-            return
-            # TODO load by actions
+            # User upload
+            pathname = fileDialog.GetPath()
+            try:
+                with open(pathname, 'r') as file:
+                    if self.is_loaded_as_events:
+                        imported_graph = parse_actions_into_queue(file.readlines())
+                    else:
+                        imported_graph = parse_events_into_queue(file.readlines())
+                    for i in range(0, len(imported_graph), 4):  # data sets are in 4s
+                        new_data_element = DataElementEvents()
+                        new_data_element.activity = imported_graph[i]
+                        new_data_element.time = imported_graph[i + 1]
+                        new_data_element.first_event = imported_graph[i + 2]
+                        new_data_element.second_event = imported_graph[i + 3]
+                        self.data.append(new_data_element)
+                        self.set_data_element(new_data_element)
+            except IOError:
+                wx.LogError("Cannot open file '%s'.")
 
     def on_add_by_actions_clicked(self, event):
         new_data_element = DataElementEvents()
@@ -316,7 +317,6 @@ class MainFrame(wx.Frame):
             for inp in self.input_action:
                 inp.SetEditable(False)
                 inp.SetBackgroundColour((50, 50, 50))
-
 
     def on_exit(self, event):
         """Close the frame, terminating the application."""

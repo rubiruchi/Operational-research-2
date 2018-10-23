@@ -56,7 +56,6 @@ class Graph:
         self.max_node = 1
         self.edges = []
         self.ends = [1]
-        # self.connected_nodes = defaultdict(list)
         self.connected_nodes = set()
         self.in_edges = defaultdict(list)
         self.z_counter = 1
@@ -96,17 +95,12 @@ class Graph:
                 for e in self.edges:
                     if e_name == e.name:
                         # add edge to another node
-                        next_node = self.next_node(e.first)
+                        next_node = self.next_node(e.first, e.second)
                         self.add_edge(e.name, e.time, e.first, next_node)
                         # remove
                         print("Removed edge: %s (%s -> %s)" % (e.name, e.first, e.second))
-                        fs = str(e.first) + str(e.second)
-                        sf = str(e.second) + str(e.first)
-                        self.connected_nodes.remove(fs)
-                        self.connected_nodes.remove(sf)
                         self.in_edges[edge.second].remove(e)
                         self.edges.remove(e)
-                        # self.connected_nodes[edge.first].remove(edge.second)
                         break
             self.check_ends()
 
@@ -121,28 +115,32 @@ class Graph:
                     if e_name == e.name:
                         f = e.second
                 self.add_edge(e_name, 0, f, edge.second)
+            self.check_ends()
 
             next_node = self.next_node(edge.second)
             self.add_edge(element.activity, element.time, edge.second, next_node)
 
         self.check_ends()
         print("Ends: %s" % self.ends)
+        print("Connected: %s" % self.connected_nodes)
 
     def add_edge(self, a, t, f, s):
         print("Added edge: %s (%s -> %s)" % (a, f, s))
         edge = Edge(a, t, f, s)
         self.edges.append(edge)
         self.in_edges[s].append(edge)
-        fs = str(f) + str(s)
-        sf = str(s) + str(f)
+        fs = str(f) + " " + str(s)
+        sf = str(s) + " " + str(f)
         self.connected_nodes.add(fs)
         self.connected_nodes.add(sf)
 
-    def next_node(self, previous):
+    def next_node(self, previous, removed=0):
         for end in reversed(self.ends):
-            pe = str(previous) + str(end)
+            pe = str(previous) + " " + str(end)
             if pe not in self.connected_nodes:
-                if end != previous:
+                print(self.connected_nodes)
+                print(pe)
+                if end != previous and end > removed:
                     return end
         self.max_node += 1
         # self.connected_nodes[previous].append(self.max_node)

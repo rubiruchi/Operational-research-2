@@ -1,3 +1,6 @@
+from collections import defaultdict
+
+
 def parse_actions_into_queue(file_lines):
     queue = []
     lines = [line.rstrip('\n') for line in file_lines]
@@ -53,6 +56,10 @@ class Graph:
         self.max_node = 1
         self.edges = []
         self.ends = [1]
+        # self.connected_nodes = defaultdict(list)
+        self.connected_nodes = set()
+        self.in_edges = defaultdict(list)
+        self.z_counter = 1
 
     def to_queue(self):
         queue = []
@@ -64,22 +71,81 @@ class Graph:
         return queue
 
     def add_activity(self, element):
-        next_node = self.next_node()
+        print("------------%s------------" % element.activity)
         if element.previous_activities[0] == '-':
-            print("Added edge: %s (%s -> %s)" % (element.activity, 1, next_node))
-            self.edges.append(Edge(element.activity, element.time, 1, next_node))
+            next_node = self.next_node(1)
+            self.add_edge(element.activity, element.time, 1, next_node)
         else:
+            matching_edges = []
+            current_second = 0
+            edge = None
             for activity in element.previous_activities:
-                for edge in self.edges:
-                    if edge.name == activity:
-                        print("Added edge: %s (%s -> %s)" % (element.activity, edge.second, next_node))
-                        self.edges.append(Edge(element.activity, element.time, edge.second, next_node))
+                for e in self.edges:
+                    if e.name == activity:
+                        matching_edges.append(e)
+                        if edge is None or (e.second in self.ends and e.second > current_second):
+                            current_second = e.second
+                            edge = e
+            print([e.name for e in matching_edges])
+
+            dif = [a for a in set(edge.name for edge in self.in_edges[edge.second])
+                .difference(set(element.previous_activities))]
+            print("Difference (remove): %s " % dif)
+            for e_name in set(dif):
+                # remove
+                for e in self.edges:
+                    if e_name == e.name:
+                        # add edge to another node
+                        next_node = self.next_node(e.first)
+                        self.add_edge(e.name, e.time, e.first, next_node)
+                        # remove
+                        print("Removed edge: %s (%s -> %s)" % (e.name, e.first, e.second))
+                        fs = str(e.first) + str(e.second)
+                        sf = str(e.second) + str(e.first)
+                        self.connected_nodes.remove(fs)
+                        self.connected_nodes.remove(sf)
+                        self.in_edges[edge.second].remove(e)
+                        self.edges.remove(e)
+                        # self.connected_nodes[edge.first].remove(edge.second)
                         break
+            self.check_ends()
+
+            # need to add some zero edges
+            dif = [a for a in set(element.previous_activities)
+                .difference(set(edge.name for edge in self.in_edges[edge.second]))]
+            print("Difference (add zero): %s " % dif)
+            for e_name in dif:
+                # add zero edge
+                f = None
+                for e in self.edges:
+                    if e_name == e.name:
+                        f = e.second
+                self.add_edge(e_name, 0, f, edge.second)
+
+            next_node = self.next_node(edge.second)
+            self.add_edge(element.activity, element.time, edge.second, next_node)
+
         self.check_ends()
         print("Ends: %s" % self.ends)
 
-    def next_node(self):
+    def add_edge(self, a, t, f, s):
+        print("Added edge: %s (%s -> %s)" % (a, f, s))
+        edge = Edge(a, t, f, s)
+        self.edges.append(edge)
+        self.in_edges[s].append(edge)
+        fs = str(f) + str(s)
+        sf = str(s) + str(f)
+        self.connected_nodes.add(fs)
+        self.connected_nodes.add(sf)
+
+    def next_node(self, previous):
+        for end in reversed(self.ends):
+            pe = str(previous) + str(end)
+            if pe not in self.connected_nodes:
+                if end != previous:
+                    return end
         self.max_node += 1
+        # self.connected_nodes[previous].append(self.max_node)
         return self.max_node
 
     def check_ends(self):
@@ -121,73 +187,5 @@ def parse_events_into_queue(file_lines):
 
     for data_action in data_actions:
         graph.add_activity(data_action)
-    graph.reduce()
-    return graph.to_queue()
 
-    # data_actions = []
-    # ends = set()
-    # current_event = 1
-    # z_counter = 1
-    # data_events = {}
-    # connected_nodes = defaultdict(list)
-    # nodes = set()
-    #
-    # for i in lines:
-    #     data_action = DataElementActions(i[0], i[1], [i[j] for j in range(2, len(i))])
-    #     data_actions.append(data_action)
-    #
-    # for data_action in data_actions:
-    #     if data_action.previous_activities == ['-']:
-    #         data_event = DataElementEvents(data_action.activity, data_action.time, 1, None)
-    #         if current_event in connected_nodes[data_event.first_event] or current_event == data_event.first_event:
-    #             current_event += 1
-    #             ends.add(current_event)
-    #         ends.discard(data_event.first_event)
-    #         data_event.second_event = current_event
-    #         data_events[data_action.activity] = data_event
-    #         connected_nodes[data_event.first_event].append(data_event.second_event)
-    #         nodes.add(data_event.first_event)
-    #         nodes.add(data_event.second_event)
-    #     else:
-    #         shared_event = min(data_events[action].second_event for action in data_action.previous_activities)
-    #         for action in data_action.previous_activities:
-    #             if data_events[action].second_event != shared_event:
-    #                 data_event = DataElementEvents("Z" + str(z_counter), 0, data_events[action].second_event,
-    #                                                shared_event)
-    #                 data_events[data_event.activity] = data_event
-    #                 z_counter += 1
-    #
-    #         data_event = DataElementEvents(data_action.activity, data_action.time, shared_event, None)
-    #         if current_event in connected_nodes[data_event.first_event] \
-    #                 or current_event == data_event.first_event:
-    #             if len(ends) > 1:
-    #                 for end in ends:
-    #                     if end not in connected_nodes[data_event.first_event]:
-    #                         current_event = end
-    #                         data_event.second_event = end
-    #                         break
-    #             else:
-    #                 current_event += 1
-    #                 while current_event in nodes:
-    #                     current_event += 1
-    #                 ends.add(current_event)
-    #                 data_event.second_event = current_event
-    #         ends.discard(data_event.first_event)
-    #         data_events[data_action.activity] = data_event
-    #         connected_nodes[data_event.first_event].append(data_event.second_event)
-    #         nodes.add(data_event.first_event)
-    #         nodes.add(data_event.second_event)
-    #
-    #     print(data_action.activity)
-    #     print(data_events)
-    #     print(connected_nodes)
-    #     print("Ends %s" % ends)
-    #
-    # for key, data_event in data_events.items():
-    #     queue.append(data_event.activity)
-    #     queue.append(data_event.time)
-    #     queue.append(str(data_event.first_event))
-    #     queue.append(str(data_event.second_event))
-    #
-    # print(queue)
-    # return queue
+    return graph.to_queue()

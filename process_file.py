@@ -1,6 +1,3 @@
-from collections import Counter
-
-
 def parse_actions_into_queue(file_lines):
     queue = []
     lines = [line.rstrip('\n') for line in file_lines]
@@ -12,125 +9,185 @@ def parse_actions_into_queue(file_lines):
     return queue
 
 
-first_action_counter = 1
+# first_action_counter = 1
+
+class DataElementActions:
+    def __init__(self, a=None, t=0, p=None):
+        if p is None:
+            p = []
+        self.activity = a
+        self.time = t
+        self.previous_activities = p
+
+    def __str__(self):
+        return str(self.activity) + " " + str(self.previous_activities)
+
+    def __repr__(self):
+        return str(self.activity) + " " + str(self.previous_activities)
+
+
+class DataElementEvents:
+    def __init__(self, a=None, t=0, f=None, s=None):
+        self.activity = a
+        self.time = t
+        self.first_event = f
+        self.second_event = s
+
+    def __str__(self):
+        return str(self.activity) + " " + str(self.first_event) + "->" + str(self.second_event)
+
+    def __repr__(self):
+        return str(self.activity) + " " + str(self.first_event) + "->" + str(self.second_event)
+
+
+class Edge:
+    def __init__(self, n=None, t=0, f=None, s=None):
+        self.name = n
+        self.time = t
+        self.first = f
+        self.second = s
+
+
+class Graph:
+    def __init__(self):
+        self.max_node = 1
+        self.edges = []
+        self.ends = [1]
+
+    def to_queue(self):
+        queue = []
+        for edge in self.edges:
+            queue.append(edge.name)
+            queue.append(edge.time)
+            queue.append(str(edge.first))
+            queue.append(str(edge.second))
+        return queue
+
+    def add_activity(self, element):
+        next_node = self.next_node()
+        if element.previous_activities[0] == '-':
+            print("Added edge: %s (%s -> %s)" % (element.activity, 1, next_node))
+            self.edges.append(Edge(element.activity, element.time, 1, next_node))
+        else:
+            for activity in element.previous_activities:
+                for edge in self.edges:
+                    if edge.name == activity:
+                        print("Added edge: %s (%s -> %s)" % (element.activity, edge.second, next_node))
+                        self.edges.append(Edge(element.activity, element.time, edge.second, next_node))
+                        break
+        self.check_ends()
+        print("Ends: %s" % self.ends)
+
+    def next_node(self):
+        self.max_node += 1
+        return self.max_node
+
+    def check_ends(self):
+        self.ends.clear()
+        not_ends = set()
+        all_nodes = set()
+
+        for i in range(1, self.max_node + 1):
+            all_nodes.add(i)
+            for edge in self.edges:
+                if edge.first == i:
+                    not_ends.add(i)
+
+        self.ends = list(all_nodes.difference(not_ends))
+
+    def reduce(self):
+        # reduce endings
+        if len(self.ends) > 1:
+            min_edge = min(e for e in self.ends)
+            print("Reduce ends into %s" % min_edge)
+            for edge in self.edges:
+                if edge.second in self.ends and edge != min_edge:
+                    # we want to remove node
+                    edge.second = min_edge
+            self.ends = [min_edge]
+
 
 def parse_events_into_queue(file_lines):
-    queue = []
-    lines = [line.rstrip('\n') for line in file_lines] # przewaznie rozbijam plik usuwajac \n
-    lines = [line.split(' ') for line in lines] # i splitujac tak zebym mial komorki pojedyncze
+    lines = [line.rstrip('\n') for line in file_lines]
+    lines = [line.split(' ') for line in lines]
     print(lines)
-    # TODO: 1. Usuwanie tutaj..
-    successor_index = 3
-    for data_cell in lines:
-        construct_field(data_cell,queue)
-        # Poprzednia iteracja calej funkcji
-        #
-        #
-        # for value in data_cell:
-        #     #Has no previous actions
-        #     if value == '-':
-        #         first_action_counter += 1
-        #         queue.append("1")
-        #         queue.append(str(first_action_counter))
-        #     #Check if we are on 3rd data_cell and its not "-"
-        #     elif str.isalpha(value) and data_cell.index(value) > 0:
-        #         value.replace(",", "") #for more than 1
-        #         if len(value) == 1:
-        #             index = queue.index(value)
-        #             value_of_indexed = queue[index + successor_index]
-        #             queue.append(value_of_indexed)
-        #             second_action_counter = int(find_highest_event(queue)) + 1
-        #             queue.append(str(second_action_counter))
-        #         else:
-        #             value = list(value)
-        #             print(queue)
-        #             found_previous_events = []
-        #             for previous_event in range(0, len(queue), 4):
-        #                 if queue[previous_event] in value:
-        #                     index = queue.index(queue[previous_event])
-        #                     value_of_indexed = queue[index + successor_index]
-        #                     found_previous_events.append(value_of_indexed)
-        #                     # index = queue.index(previous_event)
-        #                     # value_of_indexed = queue[index + successor_index]
-        #                     # queue.append(value_of_indexed)
-        #             print("Found previous events")
-        #             print(found_previous_events)
-        #             found_keys = Counter(found_previous_events).keys()
-        #             for key in found_keys:
-        #                 queue.append()
-        #
-        #
-        #     #Not on previous event so simply adding value
-        #     else:
-        #         queue.append(value)
-    print(queue)
-    return(queue)
 
-# TODO: Ta raczej tez cala mozna wywalic..
-def construct_field(data_cell, queue):
-    ACTION_INDEX = 0
-    TIME_INDEX = 1
-    FIRST_EVENT_INDEX = 2           # To zrobilem po to zeby bylo przejrzysciej mi sie dostawac do poszczegolnych pol fielda zamiast robic osobna klase
-    SECOND_EVENT_INDEX = 3          # co prawda no.. malo sensu to mialo
-    field = [None]*4                # po to zeby nie uzywac append tylko sie odwolywac wlasnie
-    global first_action_counter     # to jest zmienna inkrementowana dla poczatkowego zdarzania danej akcji ( czyli to 1->2, to to bedzie 1)
+    data_actions = []
+    graph = Graph()
 
-    field[ACTION_INDEX] = data_cell[ACTION_INDEX] # wpisuje pierwsze wartosci fielda
-    field[TIME_INDEX] = data_cell[TIME_INDEX]
+    for i in lines:
+        data_action = DataElementActions(i[0], i[1], [i[j] for j in range(2, len(i))])
+        data_actions.append(data_action)
 
-    data_cell[FIRST_EVENT_INDEX] = data_cell[FIRST_EVENT_INDEX].replace(",","")  # replace w przypadku gdy w pliku mamy wpisane B,C,D dlatego bo inaczej isAlpha dawalo false
+    for data_action in data_actions:
+        graph.add_activity(data_action)
+    graph.reduce()
+    return graph.to_queue()
 
-    if data_cell[FIRST_EVENT_INDEX] == '-': # gdzie nie ma poprzednich zdarzen
-        first_action_counter += 1
-        field[FIRST_EVENT_INDEX] = "1"  # na sztywno wpisany
-        field[SECOND_EVENT_INDEX] = str(first_action_counter)  # wyliczony z tej globalnej
-    # Sprawdzane 3 wydarzenie czy char i czy i czy index wiekszy niz 3, to tak naprawde pozostalosc tej poprzedniej funkcji wiec troche zly jest
-    elif str.isalpha(data_cell[FIRST_EVENT_INDEX]) and data_cell.index(data_cell[FIRST_EVENT_INDEX]) > 0:
-        # sprawdzanie czy dlugosc jest jeden bo to przypadek gdzie jest 1 wydarzenie wczesniejsze
-        if len(data_cell[FIRST_EVENT_INDEX]) == 1:
-            index = queue.index(data_cell[FIRST_EVENT_INDEX])      # wylapanie indexu wczesniejszego wydarzenia
-            value_of_indexed = queue[index + SECOND_EVENT_INDEX]   # przesuniecie tak zeby wyciagnac nr jego zdarzenia koncowego
-            field[FIRST_EVENT_INDEX] = value_of_indexed
-            second_action_counter = int(find_highest_event(queue)) + 1 # znalezienie najwiekszego poprzedniego i zwiekszenie o 1
-            field[SECOND_EVENT_INDEX] = str(second_action_counter)     # BUG 1: Mozliwosc ze sa rowne i wtedy wywali sie przy rysowaniu
-        else:
-            # Przypadek gdzie wiecej niz 1 zdarzenie
-            list_of_events = list(data_cell[FIRST_EVENT_INDEX])  # Zamiana na liste zeby byly pojedynczo
-            found_previous_events = []
-            for previous_event in range(0, len(queue), 4):        # Petla skaczaca tylko po nazwach wydarzeniach juz przeparsowanych
-                if queue[previous_event] in list_of_events:       # Jesli znajdzie takie wydarzenie to wyciaga jego wartosci
-                    index = queue.index(queue[previous_event])    # index
-                    value_of_indexed = queue[index + SECOND_EVENT_INDEX]     # zdarzenie koncowe
-                    found_previous_events.append(value_of_indexed)   # wrzuca do listy koncowych zdarzen znalezionych
-            print(found_previous_events)
-            found_keys = Counter(found_previous_events)  # zlicza ich ilosc i daje taka mape gdzie najwyzszy jest 1 elementem
-            # BUG 2: lipa jest gdy sa jakies 2 rowne siebie..
-            highest_counter = max(found_keys.values()) #wyciaga ten najwyzszy bo z dict nie dalo sie bezposrednio wyciagnac jego wartosci (nie wiem czemu..)
-            for value, key in found_keys.items(): # petla po tych znalezionych
-                if key == highest_counter: # i tu jest wlasnie bug
-                    field[FIRST_EVENT_INDEX] = value
-                    field[SECOND_EVENT_INDEX] = str(find_highest_event(queue))  # nie zwiekszam o 1 bo to prawodpodobnie tez prowadzi do wspolnego
-                    if field[SECOND_EVENT_INDEX] == field[FIRST_EVENT_INDEX]:   # check czy sa rowne
-                        field[SECOND_EVENT_INDEX] = str(int(field[SECOND_EVENT_INDEX])+1)
-                else:
-                    #mock_field to w zasadzie kazdy dodatkowy zrobiony jesli bedzie wiecej niz 1, w calosci w zasadzi jest to bledne podejscie wiec no
-                    # TO BE DELETED
-                    mock_field = [None] * 4
-                    mock_field[ACTION_INDEX] = ' '
-                    mock_field[TIME_INDEX] = 0
-                    mock_field[FIRST_EVENT_INDEX] = str(value)
-                    mock_field[SECOND_EVENT_INDEX] = field[FIRST_EVENT_INDEX]
-                    for i in mock_field: #Wrzucanie do kolejki po kolei zeby zachowac ta sama strukture
-                        queue.append(i)
-            print(found_keys)
-            # for key in found_keys:
-            #     queue.append()
-    for i in field: #tutaj tez
-        queue.append(i)
-
-
-def find_highest_event(queue):
-    events = []
-    for i in range(3 , len(queue), 4):
-        events.append(queue[i])
-    return max(events)
+    # data_actions = []
+    # ends = set()
+    # current_event = 1
+    # z_counter = 1
+    # data_events = {}
+    # connected_nodes = defaultdict(list)
+    # nodes = set()
+    #
+    # for i in lines:
+    #     data_action = DataElementActions(i[0], i[1], [i[j] for j in range(2, len(i))])
+    #     data_actions.append(data_action)
+    #
+    # for data_action in data_actions:
+    #     if data_action.previous_activities == ['-']:
+    #         data_event = DataElementEvents(data_action.activity, data_action.time, 1, None)
+    #         if current_event in connected_nodes[data_event.first_event] or current_event == data_event.first_event:
+    #             current_event += 1
+    #             ends.add(current_event)
+    #         ends.discard(data_event.first_event)
+    #         data_event.second_event = current_event
+    #         data_events[data_action.activity] = data_event
+    #         connected_nodes[data_event.first_event].append(data_event.second_event)
+    #         nodes.add(data_event.first_event)
+    #         nodes.add(data_event.second_event)
+    #     else:
+    #         shared_event = min(data_events[action].second_event for action in data_action.previous_activities)
+    #         for action in data_action.previous_activities:
+    #             if data_events[action].second_event != shared_event:
+    #                 data_event = DataElementEvents("Z" + str(z_counter), 0, data_events[action].second_event,
+    #                                                shared_event)
+    #                 data_events[data_event.activity] = data_event
+    #                 z_counter += 1
+    #
+    #         data_event = DataElementEvents(data_action.activity, data_action.time, shared_event, None)
+    #         if current_event in connected_nodes[data_event.first_event] \
+    #                 or current_event == data_event.first_event:
+    #             if len(ends) > 1:
+    #                 for end in ends:
+    #                     if end not in connected_nodes[data_event.first_event]:
+    #                         current_event = end
+    #                         data_event.second_event = end
+    #                         break
+    #             else:
+    #                 current_event += 1
+    #                 while current_event in nodes:
+    #                     current_event += 1
+    #                 ends.add(current_event)
+    #                 data_event.second_event = current_event
+    #         ends.discard(data_event.first_event)
+    #         data_events[data_action.activity] = data_event
+    #         connected_nodes[data_event.first_event].append(data_event.second_event)
+    #         nodes.add(data_event.first_event)
+    #         nodes.add(data_event.second_event)
+    #
+    #     print(data_action.activity)
+    #     print(data_events)
+    #     print(connected_nodes)
+    #     print("Ends %s" % ends)
+    #
+    # for key, data_event in data_events.items():
+    #     queue.append(data_event.activity)
+    #     queue.append(data_event.time)
+    #     queue.append(str(data_event.first_event))
+    #     queue.append(str(data_event.second_event))
+    #
+    # print(queue)
+    # return queue

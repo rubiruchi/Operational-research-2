@@ -2,16 +2,8 @@ import networkx as nx
 import pylab
 import wx
 import wx.lib.scrolledpanel as scrolled
-from process_file import parse_actions_into_queue
+from process_file import parse_actions_into_queue, DataElementEvents
 from process_file import parse_events_into_queue
-
-
-class DataElementEvents:
-    def __init__(self):
-        self.activity = None
-        self.time = 0
-        self.first_event = None
-        self.second_event = None
 
 
 class MainFrame(wx.Frame):

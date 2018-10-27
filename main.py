@@ -4,6 +4,7 @@ import wx
 import wx.lib.scrolledpanel as scrolled
 from process_file import parse_actions_into_queue, DataElementEvents
 from process_file import parse_events_into_queue
+from result_window import ResultFrame
 
 
 class MainFrame(wx.Frame):
@@ -285,6 +286,7 @@ class MainFrame(wx.Frame):
         nx.draw_networkx_edges(G, pos, edgelist=dashed_path, arrows=False, style='dashed')
         nx.draw_networkx_edge_labels(G, pos, dict([((u, v,), d['time']) for u, v, d in G.edges(data=True)]))
         nx.draw_networkx_labels(G, pos)
+        self.second_window = ResultFrame(parent=wx.GetTopLevelParent(self), Graph=G)
         pylab.axis('off')
         pylab.show()
 
@@ -312,6 +314,7 @@ class MainFrame(wx.Frame):
 
     def on_exit(self, event):
         """Close the frame, terminating the application."""
+        #self.second_window.Close(True)
         self.Close(True)
 
 
